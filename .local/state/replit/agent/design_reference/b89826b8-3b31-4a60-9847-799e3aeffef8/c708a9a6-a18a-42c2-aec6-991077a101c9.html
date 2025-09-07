@@ -1,0 +1,593 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Repository Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                },
+                fontFamily: {
+                    sans: ["Inter", "system-ui", "sans-serif"],
+                    mono: ["JetBrains Mono", "Fira Code", "monospace"],
+                }
+            },
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: 13 17 23;
+            --foreground: 240 246 252;
+            --card: 22 27 34;
+            --card-foreground: 240 246 252;
+            --popover: 22 27 34;
+            --popover-foreground: 240 246 252;
+            --primary: 31 111 235;
+            --primary-foreground: 255 255 255;
+            --secondary: 33 38 45;
+            --secondary-foreground: 240 246 252;
+            --muted: 33 38 45;
+            --muted-foreground: 139 148 158;
+            --accent: 35 134 54;
+            --accent-foreground: 255 255 255;
+            --destructive: 218 54 51;
+            --destructive-foreground: 255 255 255;
+            --border: 48 54 61;
+            --input: 33 38 45;
+            --ring: 31 111 235;
+            --radius: 6px;
+        }
+
+        * {
+            border-color: hsl(var(--border));
+        }
+
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            font-family: Inter, system-ui, sans-serif;
+        }
+
+        .code-font {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .file-tree-item:hover {
+            background-color: hsl(var(--muted));
+        }
+
+        .file-tree-item.selected {
+            background-color: hsl(var(--primary) / 0.2);
+            border-left: 2px solid hsl(var(--primary));
+        }
+
+        .tab-active {
+            background-color: hsl(var(--background));
+            border-bottom: 2px solid hsl(var(--primary));
+        }
+
+        .editor-area {
+            background-color: hsl(var(--background));
+            border: 1px solid hsl(var(--border));
+        }
+
+        .drag-over {
+            border: 2px dashed hsl(var(--primary));
+            background-color: hsl(var(--primary) / 0.1);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-modified {
+            background-color: hsl(var(--accent));
+        }
+
+        .status-new {
+            background-color: hsl(var(--primary));
+        }
+
+        .status-deleted {
+            background-color: hsl(var(--destructive));
+        }
+
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .breadcrumb-separator::before {
+            content: "/";
+            margin: 0 8px;
+            color: hsl(var(--muted-foreground));
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-background text-foreground min-h-screen">
+    <!-- @COMPONENT: AppHeader -->
+    <header class="bg-card border-b border-border px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2">
+                <i class="fab fa-github text-2xl"></i>
+                <h1 class="text-xl font-semibold">Repository Manager</h1>
+            </div>
+            
+            <!-- Repository Selector -->
+            <div class="flex items-center space-x-2">
+                <select class="bg-input border border-border rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring" data-mock="true">
+                    <option>my-awesome-project</option>
+                    <option>portfolio-website</option>
+                    <option>react-components</option>
+                </select>
+                <button class="bg-primary text-primary-foreground px-3 py-1 rounded-md text-sm hover:bg-primary/90 transition-colors">
+                    <i class="fas fa-sync-alt mr-1"></i>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- GitHub Token Status -->
+            <div class="flex items-center space-x-2 text-sm">
+                <div class="status-indicator bg-accent"></div>
+                <span class="text-muted-foreground">Connected</span>
+            </div>
+            
+            <!-- Action Buttons -->
+            <button class="bg-accent text-accent-foreground px-3 py-1 rounded-md text-sm hover:bg-accent/90 transition-colors">
+                <i class="fas fa-save mr-1"></i>
+                Commit Changes
+            </button>
+            <button class="bg-secondary text-secondary-foreground px-3 py-1 rounded-md text-sm hover:bg-secondary/80 transition-colors">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </header>
+    <!-- @END_COMPONENT: AppHeader -->
+
+    <div class="flex h-screen pt-0">
+        <!-- @COMPONENT: Sidebar -->
+        <aside class="w-80 bg-card border-r border-border flex flex-col">
+            <!-- File Tree Header -->
+            <div class="p-4 border-b border-border">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-medium text-sm uppercase tracking-wide text-muted-foreground">Files</h2>
+                    <div class="flex space-x-1">
+                        <button class="p-1.5 hover:bg-muted rounded-md transition-colors" title="New File">
+                            <i class="fas fa-file-plus text-sm"></i>
+                        </button>
+                        <button class="p-1.5 hover:bg-muted rounded-md transition-colors" title="New Folder">
+                            <i class="fas fa-folder-plus text-sm"></i>
+                        </button>
+                        <button class="p-1.5 hover:bg-muted rounded-md transition-colors" title="Upload Files">
+                            <i class="fas fa-upload text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Breadcrumb Navigation -->
+                <div class="flex items-center text-sm text-muted-foreground">
+                    <button class="hover:text-foreground transition-colors">root</button>
+                    <span class="breadcrumb-separator"></span>
+                    <button class="hover:text-foreground transition-colors">src</button>
+                    <span class="breadcrumb-separator"></span>
+                    <span class="text-foreground">components</span>
+                </div>
+            </div>
+
+            <!-- File Tree -->
+            <div class="flex-1 overflow-y-auto">
+                <!-- @MAP: fileTree.map(item => ( -->
+                <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                    <i class="fas fa-folder text-primary mr-2"></i>
+                    <span>.github</span>
+                </div>
+
+                <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors selected" data-mock="true">
+                    <i class="fas fa-folder-open text-primary mr-2"></i>
+                    <span>src</span>
+                </div>
+
+                <div class="ml-4">
+                    <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                        <i class="fas fa-folder text-primary mr-2"></i>
+                        <span>components</span>
+                    </div>
+                    
+                    <div class="ml-4">
+                        <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                            <i class="fas fa-file-code text-accent mr-2"></i>
+                            <span>Header.jsx</span>
+                            <div class="status-indicator status-modified ml-auto"></div>
+                        </div>
+                        <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                            <i class="fas fa-file-code text-accent mr-2"></i>
+                            <span>Sidebar.jsx</span>
+                        </div>
+                        <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                            <i class="fas fa-file-code text-accent mr-2"></i>
+                            <span>FileTree.jsx</span>
+                            <div class="status-indicator status-new ml-auto"></div>
+                        </div>
+                    </div>
+
+                    <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                        <i class="fas fa-folder text-primary mr-2"></i>
+                        <span>utils</span>
+                    </div>
+                    
+                    <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                        <i class="fas fa-file-code text-accent mr-2"></i>
+                        <span>App.jsx</span>
+                    </div>
+                    
+                    <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                        <i class="fas fa-file-code text-orange-400 mr-2"></i>
+                        <span>index.css</span>
+                    </div>
+                </div>
+
+                <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                    <i class="fas fa-file text-blue-400 mr-2"></i>
+                    <span>package.json</span>
+                </div>
+
+                <div class="file-tree-item p-2 cursor-pointer flex items-center text-sm hover:bg-muted transition-colors" data-mock="true">
+                    <i class="fas fa-file text-muted-foreground mr-2"></i>
+                    <span>README.md</span>
+                </div>
+                <!-- @END_MAP )) -->
+            </div>
+
+            <!-- Upload Zone -->
+            <div class="p-4 border-t border-border">
+                <div class="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer" data-implementation="Drag and drop file upload zone">
+                    <i class="fas fa-cloud-upload-alt text-2xl text-muted-foreground mb-2"></i>
+                    <p class="text-sm text-muted-foreground">Drop files here or click to upload</p>
+                    <input type="file" class="hidden" multiple data-mock="true">
+                </div>
+            </div>
+        </aside>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- @COMPONENT: MainEditor -->
+        <main class="flex-1 flex flex-col">
+            <!-- Editor Tabs -->
+            <div class="bg-card border-b border-border flex items-center">
+                <div class="flex overflow-x-auto">
+                    <!-- @MAP: openTabs.map(tab => ( -->
+                    <div class="tab-active flex items-center px-4 py-2 text-sm border-r border-border cursor-pointer group" data-mock="true">
+                        <i class="fas fa-file-code text-accent mr-2"></i>
+                        <span>Header.jsx</span>
+                        <div class="status-indicator status-modified ml-2"></div>
+                        <button class="ml-2 opacity-0 group-hover:opacity-100 hover:bg-muted rounded-sm p-1 transition-all">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center px-4 py-2 text-sm border-r border-border cursor-pointer hover:bg-muted transition-colors group" data-mock="true">
+                        <i class="fas fa-file-code text-accent mr-2"></i>
+                        <span>App.jsx</span>
+                        <button class="ml-2 opacity-0 group-hover:opacity-100 hover:bg-muted rounded-sm p-1 transition-all">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                    <!-- @END_MAP )) -->
+                </div>
+
+                <div class="ml-auto px-4 py-2 flex items-center space-x-2">
+                    <span class="text-xs text-muted-foreground">Line 24, Column 15</span>
+                    <span class="text-xs text-muted-foreground">UTF-8</span>
+                    <span class="text-xs text-muted-foreground">JSX</span>
+                </div>
+            </div>
+
+            <!-- Editor Content -->
+            <div class="flex-1 relative">
+                <!-- Monaco Editor Container -->
+                <div class="editor-area w-full h-full p-4" data-implementation="Monaco Editor integration">
+                    <div class="code-font text-sm leading-relaxed">
+                        <!-- @FUNCTIONALITY: Monaco Editor should be initialized here with syntax highlighting -->
+                        <div class="mb-2 text-muted-foreground">
+                            <span class="mr-6">1</span>
+                            <span class="text-purple-400">import</span>
+                            <span class="text-foreground"> React </span>
+                            <span class="text-purple-400">from</span>
+                            <span class="text-green-400"> 'react'</span>
+                            <span class="text-muted-foreground">;</span>
+                        </div>
+                        <div class="mb-2 text-muted-foreground">
+                            <span class="mr-6">2</span>
+                            <span class="text-purple-400">import</span>
+                            <span class="text-foreground"> PropTypes </span>
+                            <span class="text-purple-400">from</span>
+                            <span class="text-green-400"> 'prop-types'</span>
+                            <span class="text-muted-foreground">;</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="mr-6 text-muted-foreground">3</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="mr-6 text-muted-foreground">4</span>
+                            <span class="text-purple-400">const</span>
+                            <span class="text-blue-400"> Header</span>
+                            <span class="text-foreground"> = ({ </span>
+                            <span class="text-orange-400">title</span>
+                            <span class="text-foreground">, </span>
+                            <span class="text-orange-400">onMenuClick</span>
+                            <span class="text-foreground"> }) => {</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="mr-6 text-muted-foreground">5</span>
+                            <span class="text-purple-400 ml-4">return</span>
+                            <span class="text-foreground"> (</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="mr-6 text-muted-foreground">6</span>
+                            <span class="text-foreground ml-8">&lt;</span>
+                            <span class="text-red-400">header</span>
+                            <span class="text-foreground"> </span>
+                            <span class="text-blue-400">className</span>
+                            <span class="text-foreground">=</span>
+                            <span class="text-green-400">"bg-card border-b border-border"</span>
+                            <span class="text-foreground">&gt;</span>
+                        </div>
+                        <div class="mb-2 bg-primary/20 border-l-2 border-primary">
+                            <span class="mr-6 text-muted-foreground">7</span>
+                            <span class="text-foreground ml-12">&lt;</span>
+                            <span class="text-red-400">div</span>
+                            <span class="text-foreground"> </span>
+                            <span class="text-blue-400">className</span>
+                            <span class="text-foreground">=</span>
+                            <span class="text-green-400">"flex items-center justify-between px-6 py-3"</span>
+                            <span class="text-foreground">&gt;</span>
+                            <span class="ml-2 bg-yellow-500/20 text-yellow-300">|</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="mr-6 text-muted-foreground">8</span>
+                            <span class="text-foreground ml-16">&lt;</span>
+                            <span class="text-red-400">h1</span>
+                            <span class="text-foreground">&gt;{</span>
+                            <span class="text-orange-400">title</span>
+                            <span class="text-foreground">}&lt;/</span>
+                            <span class="text-red-400">h1</span>
+                            <span class="text-foreground">&gt;</span>
+                        </div>
+                        <div class="text-muted-foreground text-xs mt-4">
+                            <!-- Mock editor content continues... -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floating Action Button -->
+                <button class="absolute bottom-6 right-6 bg-primary text-primary-foreground w-12 h-12 rounded-full shadow-lg hover:bg-primary/90 transition-all hover:scale-105">
+                    <i class="fas fa-save"></i>
+                </button>
+            </div>
+        </main>
+        <!-- @END_COMPONENT: MainEditor -->
+
+        <!-- @COMPONENT: RightPanel (Optional) -->
+        <aside class="w-64 bg-card border-l border-border hidden lg:flex flex-col">
+            <!-- File Properties -->
+            <div class="p-4 border-b border-border">
+                <h3 class="font-medium text-sm uppercase tracking-wide text-muted-foreground mb-3">File Info</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Size:</span>
+                        <span>2.3 KB</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Modified:</span>
+                        <span>2 hours ago</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-muted-foreground">Type:</span>
+                        <span>JavaScript</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Changes -->
+            <div class="p-4 border-b border-border">
+                <h3 class="font-medium text-sm uppercase tracking-wide text-muted-foreground mb-3">Recent Changes</h3>
+                <div class="space-y-3">
+                    <!-- @MAP: recentChanges.map(change => ( -->
+                    <div class="flex items-start space-x-2" data-mock="true">
+                        <div class="status-indicator status-modified mt-1.5"></div>
+                        <div class="text-sm">
+                            <div class="font-medium">Header.jsx</div>
+                            <div class="text-muted-foreground text-xs">Added new prop validation</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-2" data-mock="true">
+                        <div class="status-indicator status-new mt-1.5"></div>
+                        <div class="text-sm">
+                            <div class="font-medium">FileTree.jsx</div>
+                            <div class="text-muted-foreground text-xs">Created new component</div>
+                        </div>
+                    </div>
+                    <!-- @END_MAP )) -->
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="p-4">
+                <h3 class="font-medium text-sm uppercase tracking-wide text-muted-foreground mb-3">Quick Actions</h3>
+                <div class="space-y-2">
+                    <button class="w-full text-left p-2 rounded-md hover:bg-muted transition-colors text-sm flex items-center">
+                        <i class="fas fa-search mr-2 text-muted-foreground"></i>
+                        Find in files
+                    </button>
+                    <button class="w-full text-left p-2 rounded-md hover:bg-muted transition-colors text-sm flex items-center">
+                        <i class="fas fa-replace mr-2 text-muted-foreground"></i>
+                        Find and replace
+                    </button>
+                    <button class="w-full text-left p-2 rounded-md hover:bg-muted transition-colors text-sm flex items-center">
+                        <i class="fas fa-code-branch mr-2 text-muted-foreground"></i>
+                        Create branch
+                    </button>
+                </div>
+            </div>
+        </aside>
+        <!-- @END_COMPONENT: RightPanel -->
+    </div>
+
+    <!-- @COMPONENT: Modal - Commit Dialog -->
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden" id="commitModal" data-mock="true">
+        <div class="bg-card border border-border rounded-lg w-full max-w-md mx-4">
+            <div class="p-6">
+                <h2 class="text-lg font-semibold mb-4">Commit Changes</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Commit Message</label>
+                        <textarea class="w-full bg-input border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" rows="3" placeholder="Describe your changes..." data-mock="true"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Changed Files (3)</label>
+                        <div class="space-y-2 max-h-32 overflow-y-auto bg-muted rounded-md p-2">
+                            <div class="flex items-center text-sm">
+                                <div class="status-indicator status-modified"></div>
+                                <span>src/components/Header.jsx</span>
+                            </div>
+                            <div class="flex items-center text-sm">
+                                <div class="status-indicator status-new"></div>
+                                <span>src/components/FileTree.jsx</span>
+                            </div>
+                            <div class="flex items-center text-sm">
+                                <div class="status-indicator status-modified"></div>
+                                <span>package.json</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button class="bg-secondary text-secondary-foreground px-4 py-2 rounded-md text-sm hover:bg-secondary/80 transition-colors">
+                        Cancel
+                    </button>
+                    <button class="bg-accent text-accent-foreground px-4 py-2 rounded-md text-sm hover:bg-accent/90 transition-colors">
+                        <i class="fas fa-check mr-1"></i>
+                        Commit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: Modal -->
+
+    <!-- Loading Overlay -->
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden" id="loadingOverlay">
+        <div class="bg-card border border-border rounded-lg p-6 flex items-center space-x-3">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner text-primary"></i>
+            </div>
+            <span class="text-sm">Syncing with GitHub...</span>
+        </div>
+    </div>
+
+    <script>
+        // TODO: Implement GitHub API integration
+        // TODO: Implement Monaco Editor initialization
+        // TODO: Implement file tree navigation
+        // TODO: Implement drag and drop file upload
+        // TODO: Implement commit functionality
+        
+        (function() {
+            // Mock interactions for demo purposes
+            const fileTreeItems = document.querySelectorAll('.file-tree-item');
+            fileTreeItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    // Remove selected class from all items
+                    fileTreeItems.forEach(i => i.classList.remove('selected'));
+                    // Add selected class to clicked item
+                    this.classList.add('selected');
+                });
+            });
+
+            // Tab interactions
+            const tabs = document.querySelectorAll('[class*="tab"]');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(t => t.classList.remove('tab-active'));
+                    this.classList.add('tab-active');
+                });
+            });
+
+            // Upload zone drag and drop visual feedback
+            const uploadZone = document.querySelector('[data-implementation*="upload"]');
+            if (uploadZone) {
+                uploadZone.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                });
+
+                uploadZone.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+
+                uploadZone.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    // TODO: Handle file upload
+                });
+            }
+        })();
+    </script>
+</body>
+</html>
