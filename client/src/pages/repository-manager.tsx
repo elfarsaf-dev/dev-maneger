@@ -56,8 +56,8 @@ export default function RepositoryManager() {
   const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
   const [githubToken, setGithubToken] = useState('');
   const [tokenInput, setTokenInput] = useState('');
-  const [username, setUsername] = useState('elfarsaf-dev');
-  const [usernameInput, setUsernameInput] = useState('elfarsaf-dev');
+  const [username, setUsername] = useState('safelfar717');
+  const [usernameInput, setUsernameInput] = useState('safelfar717');
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
