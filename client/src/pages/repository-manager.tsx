@@ -113,7 +113,7 @@ export default function RepositoryManager() {
   // Auto-select bos-villa-tw repository
   useEffect(() => {
     if (repositories && !selectedRepo) {
-      const defaultRepo = repositories.find(r => r.full_name === 'elfarsaf-dev/bos-villa-tw');
+      const defaultRepo = repositories.find(r => r.full_name === 'safelfar717/web');
       if (defaultRepo) {
         setSelectedRepo(defaultRepo);
       }
